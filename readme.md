@@ -20,6 +20,12 @@ I built it because I wanted a Bottle-like microframework for my <a href="https:/
 > The name **“Igo”** comes from the **Yoruba** word **“Ìgò”**, which means **“bottle.”** \
 > ma pa igo lo ri e😂
 
+## Install
+
+```go
+go get -u github.com/mukailasam/igo
+```
+
 ## Features
 
 - **Routing:** Map HTTP requests to handler functions with dynamic URL support.
@@ -48,6 +54,8 @@ func main() {
 	app.Run(":1337")
 }
 ```
+
+# Getting Started
 
 ## Contributing
 

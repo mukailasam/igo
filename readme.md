@@ -1,3 +1,13 @@
+<div align="center">
+<a href="#">
+<img width="312" height="335" alt="igo-logo" src="assets/igo.svg" />
+</a>
+</div>
+
+[![Go Version](https://img.shields.io/badge/Go-1.25+-blue.svg)](https://go.dev/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mukailasam/igo)](https://goreportcard.com/report/github.com/mukailasam/igo)
+
 # Igo - Go Web Framework
 
 Igo is a simple and lightweight micro web-framework for Go - inspired by [Bottle](https://bottlepy.org).  
@@ -38,3 +48,18 @@ func main() {
 	app.Run(":1337")
 }
 ```
+
+## Contributing
+
+Contributions are welcome!
+To contribute:
+
+- Fork the repository
+
+- Create a new branch
+
+- Implement your feature or fix
+
+- Open a pull request
+
+Make sure to follow Go’s code formatting and keep your commits clean and descriptive.

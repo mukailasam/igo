@@ -3,11 +3,18 @@
 package igo
 
 import (
+	"encoding/json"
+	"fmt"
+	"html/template"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // ----------------------------------------------------------------------------
@@ -21,6 +28,13 @@ type Context struct {
 	responseWriter http.ResponseWriter // Used to send responses back to the client
 	request        *http.Request       // The incoming HTTP request
 	params         map[string]string   // Dynamic URL parameters (e.g. /user/:id → {"id": "42"})
+	errors         []error             // A list of errors that occurred during request handling
+}
+
+func (c *Context) Error(err error) {
+	if err != nil {
+		c.errors = append(c.errors, err)
+	}
 }
 
 // Header is a shortcut for ctx.Writer.Header().Set(key, value).
@@ -80,6 +94,27 @@ func (c *Context) Abort(code int, msg string) {
 	http.Error(c.responseWriter, msg, code)
 }
 
+const defaultMultipartMemory = 32 << 20 // 32 MB
+
+// FormFile returns the first file for the provided form key.
+// Returns the file, its header info, and any error that occurred.
+func (c *Context) FormFile(key string) (multipart.File, *multipart.FileHeader, error) {
+	if c.request.MultipartForm == nil {
+		if err := c.request.ParseMultipartForm(defaultMultipartMemory); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// Use the standard library helper to get the file and its header.
+	f, fh, err := c.request.FormFile(key)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Do NOT close f here; the caller is responsible for closing the returned multipart.File.
+	return f, fh, nil
+}
+
 // SetCookie adds a Set-Cookie header to the ResponseWriter's headers.
 // The provided cookie must have a valid Name. Invalid cookies may be
 // silently dropped.
@@ -113,12 +148,56 @@ func (c *Context) GetFormValue(key string) string {
 	return c.request.Form.Get(key)
 }
 
+// HTML renders an HTML template from a file.
+// - It can use default template directory or full/custom path
+// - It Supports multi-file templates and child templates with base templates
+func (c *Context) HTML(statusCode int, name string, data any) {
+	var tpl *template.Template
+	var err error
+
+	// Try to parse template
+	if strings.Contains(name, "/") || strings.HasSuffix(name, ".html") {
+		tpl, err = template.ParseFiles(name)
+	} else {
+		pattern := filepath.Join("views", "*.html")
+		tpl, err = template.ParseGlob(pattern)
+		if err == nil && tpl != nil {
+			if t := tpl.Lookup(name + ".html"); t != nil {
+				tpl = t
+			} else {
+				err = fmt.Errorf("template not found: %s.html", name)
+			}
+		}
+	}
+
+	if err != nil {
+		c.Error(fmt.Errorf("template parse error: %v", err))
+		http.Error(c.responseWriter, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	c.WriteHeader(statusCode)
+	if execErr := tpl.Execute(c.responseWriter, data); execErr != nil {
+		c.Error(fmt.Errorf("template execution error: %v", execErr))
+		http.Error(c.responseWriter, "Template Render Error", http.StatusInternalServerError)
+	}
+}
+
 // Sends plain text to the client with the given status code
 // It also sets the Content-Type as "text/plain".
 func (c *Context) Text(statusCode int, data string) {
 	c.SetHeader("Content-Type", "text/plain; charset=utf-8")
 	c.WriteHeader(statusCode)
 	c.responseWriter.Write([]byte(data))
+}
+
+// JSON sends a JSON response to the client with the given status code.
+// It Accepts any Go value that can be marshaled into JSON (struct, map, etc.).
+// It also sets the Content-Type as "application/json".
+func (c *Context) JSON(statusCode int, responseData any) {
+	c.SetHeader("Content-Type", "application/json; charset=utf=-8")
+	c.WriteHeader(statusCode)
+	json.NewEncoder(c.responseWriter).Encode(responseData)
 }
 
 // ----------------------------------------------------------------------------
@@ -143,14 +222,30 @@ type Route struct {
 // Igo is the main framework struct.
 // It holds all registered routes and static file mappings.
 type Igo struct {
-	routes []*Route
+	routes         []*Route
+	staticMappings map[string]string
+	middlewares    []MiddlewareFunc
 }
 
+type MiddlewareFunc func(ctx *Context, next HandlerFunc)
+
 // NewIgo creates and returns a new instance of the Igo framework.
+// It initializes the internal routes and static file mappings.
 func NewIgo() *Igo {
 	return &Igo{
-		routes: []*Route{},
+		routes:         []*Route{},
+		staticMappings: map[string]string{},
+		middlewares:    []MiddlewareFunc{},
 	}
+}
+
+// Default creates a new Igo instance with Logger and Recovery middleware enabled by default.
+// This behaves like gin.Default().
+func Default() *Igo {
+	app := NewIgo()
+	app.Use(Recovery)
+	app.Use(Logger)
+	return app
 }
 
 // addRoute registers a new route in the router with its method, pattern, and handler.
@@ -196,11 +291,28 @@ func (i *Igo) OPTIONS(pattern string, handler HandlerFunc) {
 	i.addRoute("OPTIONS", pattern, handler)
 }
 
+func (i *Igo) ServeStatic(urlPath, dir string) {
+	i.staticMappings[urlPath] = dir
+}
+
 // ServeHTTP is the main request handler for the Igo framework.
 // It is automatically called by the HTTP server for each incoming request.
 // This method handles both static files and registered routes.
 func (i *Igo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
+
+	// Static files
+	for urlPath, dir := range i.staticMappings {
+		if strings.HasPrefix(path, urlPath) {
+			file := filepath.Join(dir, strings.TrimPrefix(path, urlPath))
+			if _, err := os.Stat(file); err == nil {
+				http.ServeFile(w, r, file)
+				return
+			}
+			http.NotFound(w, r)
+			return
+		}
+	}
 
 	// Routes
 	for _, route := range i.routes {
@@ -219,12 +331,62 @@ func (i *Igo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				params:         params,
 			}
 
-			route.Handler(ctx)
+			finalHandler := route.Handler
+			// Apply middlewares in reverse order (outermost last added)
+			for j := len(i.middlewares) - 1; j >= 0; j-- {
+				m := i.middlewares[j]
+				next := finalHandler
+				finalHandler = func(c *Context) {
+					m(c, next)
+				}
+			}
+
+			finalHandler(ctx)
 			return
 		}
 	}
 
 	http.NotFound(w, r)
+}
+
+// Use adds a middleware to the global middleware chain.
+// Middleware functions are executed in the order they are added.
+func (i *Igo) Use(middleware MiddlewareFunc) {
+	i.middlewares = append(i.middlewares, middleware)
+}
+
+// Logger is a middleware that logs each HTTP request and its duration.
+// It also logs any errors added to the context via c.Error().
+func Logger(c *Context, next HandlerFunc) {
+	start := time.Now()
+
+	// Execute the next handler in the chain
+	next(c)
+
+	duration := time.Since(start)
+	status := http.StatusOK
+
+	if len(c.errors) > 0 {
+		status = http.StatusInternalServerError
+		for _, err := range c.errors {
+			log.Printf("[igo][error] %v", err)
+		}
+	}
+
+	log.Printf("[igo][%d] %s %s (%v)", status, c.request.Method, c.request.URL.Path, duration)
+}
+
+// Recovery is a middleware that recovers from panics in handlers.
+// It prevents the server from crashing and logs the panic as an error.
+func Recovery(c *Context, next HandlerFunc) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err := fmt.Errorf("panic recovered: %v", rec)
+			c.Error(err)
+			http.Error(c.responseWriter, "Internal Server Error", http.StatusInternalServerError)
+		}
+	}()
+	next(c)
 }
 
 // parsePattern converts a route pattern into a regular expression and extracts parameter names.

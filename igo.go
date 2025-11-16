@@ -21,14 +21,14 @@ import (
 // Context
 // ----------------------------------------------------------------------------
 
-// Context represents the context of the current HTTP request.
-// It holds information about the request, response, and any route parameters.
-// This struct is passed to every handler so it can access and modify request/response data.
+// Context represents the context of the current HTTP Request.
+// It holds information about the Request, response, and any route parameters.
+// This struct is passed to every handler so it can access and modify Request/response data.
 type Context struct {
-	responseWriter http.ResponseWriter // Used to send responses back to the client
-	request        *http.Request       // The incoming HTTP request
+	ResponseWriter http.ResponseWriter // Used to send responses back to the client
+	Request        *http.Request       // The incoming HTTP Request
 	params         map[string]string   // Dynamic URL parameters (e.g. /user/:id → {"id": "42"})
-	errors         []error             // A list of errors that occurred during request handling
+	errors         []error             // A list of errors that occurred during Request handling
 }
 
 func (c *Context) Error(err error) {
@@ -40,25 +40,25 @@ func (c *Context) Error(err error) {
 // Header is a shortcut for ctx.Writer.Header().Set(key, value).
 // It writes a header in the response.
 func (c *Context) SetHeader(key, value string) {
-	c.responseWriter.Header().Set(key, value)
+	c.ResponseWriter.Header().Set(key, value)
 }
 
 // Redirect returns an HTTP redirect to the specific url
 func (c *Context) Redirect(url string, code int) {
-	http.Redirect(c.responseWriter, c.request, url, code)
+	http.Redirect(c.ResponseWriter, c.Request, url, code)
 }
 
-// GetHeader returns value from request header.
+// GetHeader returns value from Request header.
 // It gets the first value associated with the given key.
 // If there are no values associated with the key, it returns ""
 func (c *Context) GetHeader(key string) string {
-	return c.request.Header.Get(key)
+	return c.Request.Header.Get(key)
 }
 
 // WriteHeader is a shortcut for ctx.ResponseWriter.WriteHeader(code).
 // It sends an HTTP response header with the provided status code.
 func (c *Context) WriteHeader(statusCode int) {
-	c.responseWriter.WriteHeader(statusCode)
+	c.ResponseWriter.WriteHeader(statusCode)
 }
 
 // GetParam retrieves a URL path parameter by its key.
@@ -84,14 +84,14 @@ func (c *Context) GetContentType(data []byte) string {
 // GetQuery retrieves a query parameter from the URL by its key.
 // For example, if URL is "/?name=sam", GetQuery("name") will return "sam"
 func (c *Context) GetQuery(key string) string {
-	return c.request.URL.Query().Get(key)
+	return c.Request.URL.Query().Get(key)
 }
 
 // Abort sends an HTTP error response with the specified status code and message.
 // It uses http.Error, which writes a plain-text error message, sets the proper
 // Content-Type and headers, and sends the given status code.
 func (c *Context) Abort(code int, msg string) {
-	http.Error(c.responseWriter, msg, code)
+	http.Error(c.ResponseWriter, msg, code)
 }
 
 const defaultMultipartMemory = 32 << 20 // 32 MB
@@ -99,14 +99,14 @@ const defaultMultipartMemory = 32 << 20 // 32 MB
 // FormFile returns the first file for the provided form key.
 // Returns the file, its header info, and any error that occurred.
 func (c *Context) FormFile(key string) (multipart.File, *multipart.FileHeader, error) {
-	if c.request.MultipartForm == nil {
-		if err := c.request.ParseMultipartForm(defaultMultipartMemory); err != nil {
+	if c.Request.MultipartForm == nil {
+		if err := c.Request.ParseMultipartForm(defaultMultipartMemory); err != nil {
 			return nil, nil, err
 		}
 	}
 
 	// Use the standard library helper to get the file and its header.
-	f, fh, err := c.request.FormFile(key)
+	f, fh, err := c.Request.FormFile(key)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -122,7 +122,7 @@ func (c *Context) SetCookie(name, value string, maxAge int, path string, secure,
 	if path == "" {
 		path = "/"
 	}
-	http.SetCookie(c.responseWriter, &http.Cookie{
+	http.SetCookie(c.ResponseWriter, &http.Cookie{
 		Name:     name,
 		Value:    url.QueryEscape(value),
 		MaxAge:   maxAge,
@@ -132,10 +132,10 @@ func (c *Context) SetCookie(name, value string, maxAge int, path string, secure,
 	})
 }
 
-// GetCookie retrieves a cookie from the request by its name.
+// GetCookie retrieves a cookie from the Request by its name.
 // Returns the cookie value or an error if the cookie does not exist.
 func (c *Context) GetCookie(name string) (string, error) {
-	cookie, err := c.request.Cookie(name)
+	cookie, err := c.Request.Cookie(name)
 	if err != nil {
 		return "", err
 	}
@@ -143,9 +143,9 @@ func (c *Context) GetCookie(name string) (string, error) {
 }
 
 // GetFormValue retrieves the value associated with the given key from the
-// form data of the request. If the key does not exist, it returns an empty string.
+// form data of the Request. If the key does not exist, it returns an empty string.
 func (c *Context) GetFormValue(key string) string {
-	return c.request.Form.Get(key)
+	return c.Request.Form.Get(key)
 }
 
 // HTML renders an HTML template from a file.
@@ -172,14 +172,14 @@ func (c *Context) HTML(statusCode int, name string, data any) {
 
 	if err != nil {
 		c.Error(fmt.Errorf("template parse error: %v", err))
-		http.Error(c.responseWriter, "Internal Server Error", http.StatusInternalServerError)
+		http.Error(c.ResponseWriter, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
 	c.WriteHeader(statusCode)
-	if execErr := tpl.Execute(c.responseWriter, data); execErr != nil {
+	if execErr := tpl.Execute(c.ResponseWriter, data); execErr != nil {
 		c.Error(fmt.Errorf("template execution error: %v", execErr))
-		http.Error(c.responseWriter, "Template Render Error", http.StatusInternalServerError)
+		http.Error(c.ResponseWriter, "Template Render Error", http.StatusInternalServerError)
 	}
 }
 
@@ -188,7 +188,7 @@ func (c *Context) HTML(statusCode int, name string, data any) {
 func (c *Context) Text(statusCode int, data string) {
 	c.SetHeader("Content-Type", "text/plain; charset=utf-8")
 	c.WriteHeader(statusCode)
-	c.responseWriter.Write([]byte(data))
+	c.ResponseWriter.Write([]byte(data))
 }
 
 // JSON sends a JSON response to the client with the given status code.
@@ -197,7 +197,7 @@ func (c *Context) Text(statusCode int, data string) {
 func (c *Context) JSON(statusCode int, responseData any) {
 	c.SetHeader("Content-Type", "application/json; charset=utf=-8")
 	c.WriteHeader(statusCode)
-	json.NewEncoder(c.responseWriter).Encode(responseData)
+	json.NewEncoder(c.ResponseWriter).Encode(responseData)
 }
 
 // ----------------------------------------------------------------------------
@@ -210,11 +210,11 @@ type HandlerFunc func(ctx *Context)
 
 // Route represents a single registered route in the Igo framework.
 // It stores information about the HTTP method, pattern, handler, and
-// compiled regex for matching incoming requests.
+// compiled regex for matching incoming Requests.
 type Route struct {
 	Method     string         // HTTP method (GET, POST, etc.)
 	pattern    string         // Original route pattern (e.g. /users/<id>)
-	Handler    HandlerFunc    // Function to handle matching requests
+	Handler    HandlerFunc    // Function to handle matching Requests
 	regex      *regexp.Regexp // Compiled regex used for matching paths
 	ParamNames []string       // Names of dynamic route parameters (e.g. ["id"])
 }
@@ -295,8 +295,8 @@ func (i *Igo) ServeStatic(urlPath, dir string) {
 	i.staticMappings[urlPath] = dir
 }
 
-// ServeHTTP is the main request handler for the Igo framework.
-// It is automatically called by the HTTP server for each incoming request.
+// ServeHTTP is the main Request handler for the Igo framework.
+// It is automatically called by the HTTP server for each incoming Request.
 // This method handles both static files and registered routes.
 func (i *Igo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
@@ -326,8 +326,8 @@ func (i *Igo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				params[name] = matches[i+1]
 			}
 			ctx := &Context{
-				responseWriter: w,
-				request:        r,
+				ResponseWriter: w,
+				Request:        r,
 				params:         params,
 			}
 
@@ -355,7 +355,7 @@ func (i *Igo) Use(middleware MiddlewareFunc) {
 	i.middlewares = append(i.middlewares, middleware)
 }
 
-// Logger is a middleware that logs each HTTP request and its duration.
+// Logger is a middleware that logs each HTTP Request and its duration.
 // It also logs any errors added to the context via c.Error().
 func Logger(c *Context, next HandlerFunc) {
 	start := time.Now()
@@ -373,7 +373,7 @@ func Logger(c *Context, next HandlerFunc) {
 		}
 	}
 
-	log.Printf("[igo][%d] %s %s (%v)", status, c.request.Method, c.request.URL.Path, duration)
+	log.Printf("[igo][%d] %s %s (%v)", status, c.Request.Method, c.Request.URL.Path, duration)
 }
 
 // Recovery is a middleware that recovers from panics in handlers.
@@ -383,7 +383,7 @@ func Recovery(c *Context, next HandlerFunc) {
 		if rec := recover(); rec != nil {
 			err := fmt.Errorf("panic recovered: %v", rec)
 			c.Error(err)
-			http.Error(c.responseWriter, "Internal Server Error", http.StatusInternalServerError)
+			http.Error(c.ResponseWriter, "Internal Server Error", http.StatusInternalServerError)
 		}
 	}()
 	next(c)

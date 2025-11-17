@@ -1,0 +1,12 @@
+github.com/golang-jwt/jwt/v5 v5.3.0 h1:pv4AsKCKKZuqlgs5sUmn4x8UlGa0kEVt/puTpKx9vvo=
+github.com/golang-jwt/jwt/v5 v5.3.0/go.mod h1:fxCRLWMO43lRc8nhHWY6LGqRcf+1gQWArsqaEUEa5bE=
+github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+github.com/mattn/go-sqlite3 v1.14.32 h1:JD12Ag3oLy1zQA+BNn74xRgaBbdhbNIDYvQUEuuErjs=
+github.com/mattn/go-sqlite3 v1.14.32/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
+github.com/mukailasam/ayika v0.0.0-20251117001522-cadcbe59254d h1:Rovd83HWfGf2xlztKU20s4w5uiu/zU8sH21jurlrx2A=
+github.com/mukailasam/ayika v0.0.0-20251117001522-cadcbe59254d/go.mod h1:BHbyZ1GatJ7aSOCkq7+gFxHMNoCO5UVec8N+HxulozA=
+github.com/mukailasam/igo v1.0.1 h1:iZ7/hwDfyXsdiwzLfClxvyCNnFnzD8FHnFL9aaNa8HY=
+github.com/mukailasam/igo v1.0.1/go.mod h1:B5/GQ1+Rb6ge9zJHI6z16nMMhroLEtSuvGS/zK5NYyQ=
+golang.org/x/crypto v0.44.0 h1:A97SsFvM3AIwEEmTBiaxPPTYpDC47w720rdiiUvgoAU=
+golang.org/x/crypto v0.44.0/go.mod h1:013i+Nw79BMiQiMsOPcVCB5ZIJbYkerPrGnOa00tvmc=

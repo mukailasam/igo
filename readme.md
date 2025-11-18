@@ -57,10 +57,6 @@ func main() {
 }
 ```
 
-# Getting Started
-
-<a href="https://github.com/mukailasam/igo/blob/main/docs/docs.md"> Getting Started </a>
-
 ## Contributing
 
 Contributions are welcome!

@@ -32,7 +32,7 @@ go get -u github.com/mukailasam/igo
 - **Utilities:** Easy access to URL parameters, form data, headers, and other HTTP features.
 - **Server:** Built-in development server powered by Go’s `net/http`.
 
-Homepage and documentation: <a href="">https://mukailasam.github.io/mukailasam/igo/docs/docs.html</a>
+Homepage and documentation: <a href="">https://mukailasam.space/igo/docs/docs.html</a>
 
 ## Example Usage:
 
